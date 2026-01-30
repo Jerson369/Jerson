@@ -1,0 +1,163 @@
+:root {
+    /* Paleta Deep Dark & Emerald */
+    --bg-dark: #0f120f;           /* Fondo ultra oscuro */
+    --bg-card: #1a1f1a;           /* Fondo de tarjetas */
+    --sidebar-bg: #141814;        /* Fondo lateral */
+    
+    --primary: #52c447;           /* Verde esmeralda neón */
+    --primary-dim: rgba(82, 196, 71, 0.15);
+    --primary-dark: #2d5a3c;
+    
+    --text-main: #e0e4e0;         /* Blanco roto para no cansar */
+    --text-muted: #94a394;        /* Gris verdoso para detalles */
+    
+    --yape: #52c447;
+    --cash: #3a7a34;
+    
+    --border: rgba(255, 255, 255, 0.05);
+    --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --radius: 16px;
+}
+
+body { 
+    font-family: 'Inter', system-ui, sans-serif; 
+    background: var(--bg-dark); 
+    color: var(--text-main); 
+    margin: 0; 
+    overflow: hidden; 
+}
+
+.hidden { display: none !important; }
+
+/* Login Oscuro */
+.auth-container { 
+    height: 100vh; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    background: radial-gradient(circle at center, #1a2e1a 0%, #0f120f 100%); 
+}
+
+.login-card { 
+    background: var(--bg-card); 
+    padding: 3rem; 
+    border-radius: 2rem; 
+    width: 340px; 
+    text-align: center; 
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border);
+}
+
+.login-icon { 
+    font-size: 2.5rem; 
+    color: var(--primary); 
+    background: var(--primary-dim);
+    width: 70px; height: 70px; line-height: 70px;
+    border-radius: 20px; margin: 0 auto 1.5rem;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #252b25;
+    color: white;
+    transition: 0.3s;
+}
+
+.input-group input:focus {
+    outline: none; border-color: var(--primary); background: #2a332a;
+}
+
+.btn-login { 
+    width: 100%; background: var(--primary); color: #000; 
+    border: none; padding: 14px; border-radius: 12px; 
+    font-weight: 700; cursor: pointer; transition: 0.3s;
+}
+
+.btn-login:hover { background: #64d658; transform: translateY(-2px); }
+
+/* Dashboard Pro */
+#main-dashboard { display: flex; height: 100vh; }
+
+.sidebar { 
+    width: 260px; background: var(--sidebar-bg); 
+    border-right: 1px solid var(--border); padding: 30px 20px; 
+    display: flex; flex-direction: column; 
+}
+
+.avatar { 
+    width: 45px; height: 45px; background: var(--primary); 
+    border-radius: 12px; display: flex; align-items: center; 
+    justify-content: center; font-weight: bold; color: #000;
+}
+
+.sidebar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+.user-name { font-weight: 700; color: white; margin: 0; }
+.user-status { color: var(--primary); font-size: 0.75rem; margin: 0; }
+
+.nav-btn { 
+    display: flex; align-items: center; gap: 12px; width: 100%; 
+    padding: 14px; border: none; background: none; border-radius: 12px; 
+    color: var(--text-muted); cursor: pointer; transition: 0.2s;
+    font-weight: 500; margin-bottom: 8px;
+}
+
+.nav-btn.active { background: var(--primary-dim); color: var(--primary); }
+.nav-btn:hover:not(.active) { background: #202620; color: white; }
+
+/* Contenedores de Contenido */
+.content-area { flex: 1; padding: 40px; overflow-y: auto; background: var(--bg-dark); }
+
+.balance-card { 
+    background: var(--bg-card); padding: 25px; border-radius: var(--radius); 
+    box-shadow: var(--card-shadow); border: 1px solid var(--border);
+    margin-bottom: 25px; 
+}
+
+.amount-big { font-size: 3rem; font-weight: 800; color: var(--primary); letter-spacing: -2px; }
+
+/* Gestión de Operaciones */
+.form-group { display: flex; gap: 12px; padding: 10px; }
+.form-group input, .form-group select { 
+    background: #252b25; border: 1px solid var(--border); 
+    padding: 12px; border-radius: 10px; color: white; flex: 1;
+}
+
+.btn-save { 
+    background: var(--primary); color: #000; border: none; 
+    padding: 0 25px; border-radius: 10px; font-weight: 700; cursor: pointer;
+}
+
+/* Historial Dark */
+.history-item { 
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 10px; border-bottom: 1px solid var(--border); 
+}
+
+.type-in { color: var(--primary); font-weight: 700; font-size: 1rem; }
+.type-out { color: #ff5c5c; font-weight: 700; font-size: 1rem; }
+
+.admin-btns { display: flex; gap: 8px; }
+.btn-edit, .btn-delete { 
+    border: none; background: #252b25; width: 35px; height: 35px; 
+    border-radius: 8px; cursor: pointer; color: var(--text-muted); transition: 0.2s;
+}
+
+.btn-edit:hover { color: var(--primary); background: var(--primary-dim); }
+.btn-delete:hover { color: #ff5c5c; background: rgba(255, 92, 92, 0.1); }
+
+.btn-logout { 
+    margin-top: auto; padding: 12px; border: 1px solid var(--border); 
+    border-radius: 10px; background: transparent; color: #ff5c5c; 
+    cursor: pointer; font-weight: 600;
+}
+.btn-logout:hover { background: rgba(255, 92, 92, 0.05); }
+
+/* Scrollbar personalizada para que no rompa el diseño oscuro */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: #252b25; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #303830; }

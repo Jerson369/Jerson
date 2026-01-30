@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Pro | Panel Administrativo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <section id="login-section" class="auth-container">
+        <div class="login-card">
+            <div class="login-icon"><i class="fas fa-user-shield"></i></div>
+            <h2>Acceso al Sistema</h2>
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Usuario">
+                <input type="password" id="password" placeholder="Contraseña">
+            </div>
+            <button class="btn-login" onclick="login()">Entrar</button>
+            <p id="error-msg" class="error"></p>
+        </div>
+    </section>
+
+    <main id="main-dashboard" class="hidden">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="avatar">ADM</div>
+                <div>
+                    <p class="user-name">Administrador</p>
+                    <p class="user-status">En línea</p>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button onclick="showModule('resumen')" class="nav-btn active" id="btn-resumen">
+                    <i class="fas fa-chart-line"></i> Resumen General
+                </button>
+                <button onclick="showModule('yape')" class="nav-btn" id="btn-yape">
+                    <i class="fas fa-wallet"></i> Gestión Yape
+                </button>
+                <button onclick="showModule('efectivo')" class="nav-btn" id="btn-efectivo">
+                    <i class="fas fa-money-bill-wave"></i> Gestión Efectivo
+                </button>
+            </nav>
+            <button class="btn-logout" onclick="location.reload()">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+        </aside>
+
+        <section class="content-area" id="content-module">
+            </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
