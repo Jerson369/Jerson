@@ -1,27 +1,38 @@
-// Credenciales Solicitadas
+// Credenciales
 const AUTH = { user: "admin", pass: "admin123" };
 
-// Datos del Sistema (Se sincronizarán con la nube)
+// Datos del Sistema (Sincronizados con Firebase)
 let appData = {
     yape: { total: 0, history: [] },
     efectivo: { total: 0, history: [] }
 };
 
-// --- CONEXIÓN CON LA NUBE ---
-// Esta función escucha los cambios en Google Cloud en tiempo real
+// --- CONEXIÓN EN TIEMPO REAL CON LA NUBE ---
 function conectarNube() {
-    const q = window.fb.query(window.fb.collection(window.db, "movimientos"), window.fb.orderBy("fecha", "desc"));
+    // Consulta a la colección 'movimientos' ordenada por fecha
+    const q = window.fb.query(
+        window.fb.collection(window.db, "movimientos"), 
+        window.fb.orderBy("fecha", "desc")
+    );
     
     window.fb.onSnapshot(q, (snapshot) => {
-        // Reiniciamos datos locales
+        // Reiniciamos datos para recalcular con lo que viene de la nube
         appData.yape = { total: 0, history: [] };
         appData.efectivo = { total: 0, history: [] };
 
         snapshot.forEach((doc) => {
             const data = doc.data();
-            const mov = { id: doc.id, ...data, fecha: data.fecha?.toDate().toLocaleDateString() || "Reciente" };
+            // Convertimos la fecha de Firebase a formato legible
+            const fechaLegible = data.fecha?.toDate() 
+                ? data.fecha.toDate().toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) 
+                : "Procesando...";
+
+            const mov = { 
+                id: doc.id, 
+                ...data, 
+                fecha: fechaLegible 
+            };
             
-            // Clasificar y calcular totales
             if (data.tipoModulo === 'yape') {
                 appData.yape.history.push(mov);
                 appData.yape.total += (data.op === 'in' ? data.monto : -data.monto);
@@ -31,8 +42,9 @@ function conectarNube() {
             }
         });
 
-        // Refrescar la pantalla actual
-        const moduloActual = document.querySelector('.nav-btn.active')?.id.replace('btn-', '') || 'resumen';
+        // Detectar en qué pestaña estamos para actualizar la vista sin cerrar sesión
+        const btnActivo = document.querySelector('.nav-btn.active');
+        const moduloActual = btnActivo ? btnActivo.id.replace('btn-', '') : 'resumen';
         showModule(moduloActual);
     });
 }
@@ -44,33 +56,38 @@ function login() {
     if (u === AUTH.user && p === AUTH.pass) {
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('main-dashboard').classList.remove('hidden');
-        conectarNube(); // Iniciamos la conexión al entrar
+        conectarNube(); // Activa la escucha de la base de datos
     } else {
         document.getElementById('error-msg').innerText = "Usuario o contraseña incorrectos";
     }
 }
 
 async function registrar(tipo) {
-    const monto = parseFloat(document.getElementById('val-monto').value);
-    const desc = document.getElementById('val-desc').value;
+    const montoInput = document.getElementById('val-monto');
+    const descInput = document.getElementById('val-desc');
+    const monto = parseFloat(montoInput.value);
+    const desc = descInput.value;
     const op = document.getElementById('val-tipo').value;
 
-    if (!monto || !desc) return alert("Completa todos los datos");
+    if (!monto || !desc) return alert("Por favor, completa todos los campos");
 
     try {
-        // GUARDAR EN LA NUBE (Google Cloud)
+        // Guardar directamente en Firestore
         await window.fb.addDoc(window.fb.collection(window.db, "movimientos"), {
-            desc,
-            monto,
-            op,
+            desc: desc,
+            monto: monto,
+            op: op,
             tipoModulo: tipo,
-            fecha: window.fb.serverTimestamp()
+            fecha: window.fb.serverTimestamp() // Fecha oficial del servidor de Google
         });
         
-        alert("¡Guardado en la nube con éxito!");
+        // Limpiar campos tras éxito
+        montoInput.value = "";
+        descInput.value = "";
+        alert("✅ Registro guardado en la nube");
     } catch (e) {
-        console.error("Error al guardar: ", e);
-        alert("Error de conexión");
+        console.error("Error:", e);
+        alert("❌ Error al guardar. Revisa tu conexión.");
     }
 }
 
@@ -88,7 +105,7 @@ function showModule(type) {
         content.innerHTML = `
             <h1>Resumen General (Nube)</h1>
             <div class="balance-card">
-                <p style="color: var(--text-muted)">Balance Total</p>
+                <p style="color: var(--text-muted)">Balance Total en la Nube</p>
                 <div class="amount-big">S/ ${total.toFixed(2)}</div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -101,7 +118,7 @@ function showModule(type) {
                     <h3>S/ ${appData.efectivo.total.toFixed(2)}</h3>
                 </div>
             </div>
-            <div class="chart-container">
+            <div class="chart-container" style="margin-top: 20px; background: var(--bg-card); padding: 20px; border-radius: 16px;">
                 <canvas id="balanceChart"></canvas>
             </div>
         `;
@@ -111,9 +128,9 @@ function showModule(type) {
         const color = type === 'yape' ? 'var(--yape)' : 'var(--cash)';
         
         content.innerHTML = `
-            <h1>Panel: ${type.toUpperCase()}</h1>
+            <h1>Gestión: ${type.toUpperCase()}</h1>
             <div class="balance-card" style="border-top: 5px solid ${color}">
-                <p>Saldo Disponible</p>
+                <p>Saldo en Tiempo Real</p>
                 <div class="amount-big" style="color: ${color}">S/ ${data.total.toFixed(2)}</div>
             </div>
 
@@ -121,37 +138,35 @@ function showModule(type) {
                 <h3><i class="fas fa-plus-circle"></i> Nueva Operación</h3>
                 <div class="form-group">
                     <input type="number" id="val-monto" placeholder="Monto S/">
-                    <input type="text" id="val-desc" placeholder="Concepto">
+                    <input type="text" id="val-desc" placeholder="¿En qué se gastó o entró?">
                     <select id="val-tipo">
                         <option value="in">Entrada (+)</option>
                         <option value="out">Salida (-)</option>
                     </select>
-                    <button class="btn-save" onclick="registrar('${type}')">Añadir a la Nube</button>
+                    <button class="btn-save" onclick="registrar('${type}')">Guardar</button>
                 </div>
             </div>
 
             <div class="balance-card">
-                <h3><i class="fas fa-history"></i> Historial en Tiempo Real</h3>
+                <h3><i class="fas fa-history"></i> Historial de la Nube</h3>
                 <div id="historial-lista">
-                    ${data.history.length === 0 ? '<p>Sin movimientos registrados</p>' : renderHistorial(data.history, type)}
+                    ${data.history.length === 0 ? '<p>No hay movimientos aún.</p>' : renderHistorial(data.history)}
                 </div>
             </div>
         `;
     }
 }
 
-function renderHistorial(lista, tipoModulo) {
+function renderHistorial(lista) {
     return lista.map((h) => `
         <div class="history-item">
             <div>
                 <strong>${h.desc}</strong><br>
-                <small>${h.fecha}</small>
+                <small style="color: var(--text-muted)">${h.fecha}</small>
             </div>
-            <div class="history-actions">
-                <span class="${h.op === 'in' ? 'type-in' : 'type-out'}">
-                    ${h.op === 'in' ? '+' : '-'} S/ ${h.monto.toFixed(2)}
-                </span>
-            </div>
+            <span class="${h.op === 'in' ? 'type-in' : 'type-out'}">
+                ${h.op === 'in' ? '+' : '-'} S/ ${h.monto.toFixed(2)}
+            </span>
         </div>
     `).join('');
 }
@@ -166,10 +181,14 @@ function initChart() {
             labels: ['Yape', 'Efectivo'],
             datasets: [{
                 data: [appData.yape.total, appData.efectivo.total],
-                backgroundColor: ['#478a3e', '#2d5a3c'],
+                backgroundColor: ['#52c447', '#3a7a34'],
                 borderWidth: 0
             }]
         },
-        options: { plugins: { legend: { position: 'bottom' } } }
+        options: { 
+            plugins: { 
+                legend: { labels: { color: '#e0e4e0' }, position: 'bottom' } 
+            } 
+        }
     });
 }
