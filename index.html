@@ -49,8 +49,34 @@
         </aside>
 
         <section class="content-area" id="content-module">
-            </section>
+        </section>
     </main>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+      // Tus credenciales reales de Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyDerdEF4B6kWQImgjSdL1SeDUtQ1u5ZIUA",
+        authDomain: "sistema-marilu-pro.firebaseapp.com",
+        projectId: "sistema-marilu-pro",
+        storageBucket: "sistema-marilu-pro.firebasestorage.app",
+        messagingSenderId: "422557057418",
+        appId: "1:422557057418:web:a8bdd39d82e8635b0b8873",
+        measurementId: "G-X5VD5HQD6S"
+      };
+
+      // Inicializar Firebase
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // Exportamos 'db' y las funciones para que script.js las pueda usar
+      window.db = db;
+      window.fb = { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp };
+      
+      console.log("✅ Conectado a la nube de Google");
+    </script>
 
     <script src="script.js"></script>
 </body>
