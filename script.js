@@ -1,11 +1,41 @@
 // Credenciales Solicitadas
 const AUTH = { user: "admin", pass: "admin123" };
 
-// Datos del Sistema (Cargados desde LocalStorage)
-let appData = JSON.parse(localStorage.getItem('sistema_financiero_data')) || {
+// Datos del Sistema (Se sincronizarán con la nube)
+let appData = {
     yape: { total: 0, history: [] },
     efectivo: { total: 0, history: [] }
 };
+
+// --- CONEXIÓN CON LA NUBE ---
+// Esta función escucha los cambios en Google Cloud en tiempo real
+function conectarNube() {
+    const q = window.fb.query(window.fb.collection(window.db, "movimientos"), window.fb.orderBy("fecha", "desc"));
+    
+    window.fb.onSnapshot(q, (snapshot) => {
+        // Reiniciamos datos locales
+        appData.yape = { total: 0, history: [] };
+        appData.efectivo = { total: 0, history: [] };
+
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            const mov = { id: doc.id, ...data, fecha: data.fecha?.toDate().toLocaleDateString() || "Reciente" };
+            
+            // Clasificar y calcular totales
+            if (data.tipoModulo === 'yape') {
+                appData.yape.history.push(mov);
+                appData.yape.total += (data.op === 'in' ? data.monto : -data.monto);
+            } else {
+                appData.efectivo.history.push(mov);
+                appData.efectivo.total += (data.op === 'in' ? data.monto : -data.monto);
+            }
+        });
+
+        // Refrescar la pantalla actual
+        const moduloActual = document.querySelector('.nav-btn.active')?.id.replace('btn-', '') || 'resumen';
+        showModule(moduloActual);
+    });
+}
 
 function login() {
     const u = document.getElementById('username').value;
@@ -14,16 +44,40 @@ function login() {
     if (u === AUTH.user && p === AUTH.pass) {
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('main-dashboard').classList.remove('hidden');
-        showModule('resumen');
+        conectarNube(); // Iniciamos la conexión al entrar
     } else {
         document.getElementById('error-msg').innerText = "Usuario o contraseña incorrectos";
     }
 }
 
+async function registrar(tipo) {
+    const monto = parseFloat(document.getElementById('val-monto').value);
+    const desc = document.getElementById('val-desc').value;
+    const op = document.getElementById('val-tipo').value;
+
+    if (!monto || !desc) return alert("Completa todos los datos");
+
+    try {
+        // GUARDAR EN LA NUBE (Google Cloud)
+        await window.fb.addDoc(window.fb.collection(window.db, "movimientos"), {
+            desc,
+            monto,
+            op,
+            tipoModulo: tipo,
+            fecha: window.fb.serverTimestamp()
+        });
+        
+        alert("¡Guardado en la nube con éxito!");
+    } catch (e) {
+        console.error("Error al guardar: ", e);
+        alert("Error de conexión");
+    }
+}
+
 function showModule(type) {
     const content = document.getElementById('content-module');
+    if (!content) return;
     
-    // UI: Activar botón en el menú
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     if (document.getElementById(`btn-${type}`)) {
         document.getElementById(`btn-${type}`).classList.add('active');
@@ -32,7 +86,7 @@ function showModule(type) {
     if (type === 'resumen') {
         const total = appData.yape.total + appData.efectivo.total;
         content.innerHTML = `
-            <h1>Resumen General</h1>
+            <h1>Resumen General (Nube)</h1>
             <div class="balance-card">
                 <p style="color: var(--text-muted)">Balance Total</p>
                 <div class="amount-big">S/ ${total.toFixed(2)}</div>
@@ -72,12 +126,12 @@ function showModule(type) {
                         <option value="in">Entrada (+)</option>
                         <option value="out">Salida (-)</option>
                     </select>
-                    <button class="btn-save" onclick="registrar('${type}')">Añadir</button>
+                    <button class="btn-save" onclick="registrar('${type}')">Añadir a la Nube</button>
                 </div>
             </div>
 
             <div class="balance-card">
-                <h3><i class="fas fa-history"></i> Historial de Movimientos</h3>
+                <h3><i class="fas fa-history"></i> Historial en Tiempo Real</h3>
                 <div id="historial-lista">
                     ${data.history.length === 0 ? '<p>Sin movimientos registrados</p>' : renderHistorial(data.history, type)}
                 </div>
@@ -86,22 +140,8 @@ function showModule(type) {
     }
 }
 
-function registrar(tipo) {
-    const monto = parseFloat(document.getElementById('val-monto').value);
-    const desc = document.getElementById('val-desc').value;
-    const op = document.getElementById('val-tipo').value;
-
-    if (!monto || !desc) return alert("Completa todos los datos");
-
-    if (op === 'in') appData[tipo].total += monto;
-    else appData[tipo].total -= monto;
-
-    appData[tipo].history.unshift({ desc, monto, op, fecha: new Date().toLocaleDateString() });
-    guardarYRefrescar(tipo);
-}
-
 function renderHistorial(lista, tipoModulo) {
-    return lista.map((h, index) => `
+    return lista.map((h) => `
         <div class="history-item">
             <div>
                 <strong>${h.desc}</strong><br>
@@ -111,46 +151,15 @@ function renderHistorial(lista, tipoModulo) {
                 <span class="${h.op === 'in' ? 'type-in' : 'type-out'}">
                     ${h.op === 'in' ? '+' : '-'} S/ ${h.monto.toFixed(2)}
                 </span>
-                <div class="admin-btns">
-                    <button class="btn-edit" onclick="editarRegistro('${tipoModulo}', ${index})"><i class="fas fa-edit"></i></button>
-                    <button class="btn-delete" onclick="eliminarRegistro('${tipoModulo}', ${index})"><i class="fas fa-trash"></i></button>
-                </div>
             </div>
         </div>
     `).join('');
 }
 
-function eliminarRegistro(tipo, index) {
-    if (confirm("¿Eliminar este registro permanentemente?")) {
-        const reg = appData[tipo].history[index];
-        if (reg.op === 'in') appData[tipo].total -= reg.monto;
-        else appData[tipo].total += reg.monto;
-        appData[tipo].history.splice(index, 1);
-        guardarYRefrescar(tipo);
-    }
-}
-
-function editarRegistro(tipo, index) {
-    const reg = appData[tipo].history[index];
-    const nDesc = prompt("Nueva descripción:", reg.desc);
-    const nMonto = parseFloat(prompt("Nuevo monto S/:", reg.monto));
-
-    if (nDesc && !isNaN(nMonto)) {
-        if (reg.op === 'in') appData[tipo].total -= reg.monto;
-        else appData[tipo].total += reg.monto;
-
-        reg.desc = nDesc;
-        reg.monto = nMonto;
-
-        if (reg.op === 'in') appData[tipo].total += reg.monto;
-        else appData[tipo].total -= reg.monto;
-
-        guardarYRefrescar(tipo);
-    }
-}
-
 function initChart() {
-    const ctx = document.getElementById('balanceChart').getContext('2d');
+    const canvas = document.getElementById('balanceChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -163,9 +172,4 @@ function initChart() {
         },
         options: { plugins: { legend: { position: 'bottom' } } }
     });
-}
-
-function guardarYRefrescar(tipo) {
-    localStorage.setItem('sistema_financiero_data', JSON.stringify(appData));
-    showModule(tipo);
 }
