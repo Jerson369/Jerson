@@ -1,48 +1,32 @@
-// Credenciales
 const AUTH = { user: "admin", pass: "admin123" };
 
-// Datos del Sistema (Sincronizados con Firebase)
 let appData = {
     yape: { total: 0, history: [] },
     efectivo: { total: 0, history: [] }
 };
 
-// --- CONEXIÓN EN TIEMPO REAL CON LA NUBE ---
+// --- CONEXIÓN EN TIEMPO REAL ---
 function conectarNube() {
-    // Consulta a la colección 'movimientos' ordenada por fecha
-    const q = window.fb.query(
-        window.fb.collection(window.db, "movimientos"), 
-        window.fb.orderBy("fecha", "desc")
-    );
+    const dbRef = window.fb.ref(window.db, 'movimientos');
     
-    window.fb.onSnapshot(q, (snapshot) => {
-        // Reiniciamos datos para recalcular con lo que viene de la nube
+    window.fb.onValue(dbRef, (snapshot) => {
         appData.yape = { total: 0, history: [] };
         appData.efectivo = { total: 0, history: [] };
-
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            // Convertimos la fecha de Firebase a formato legible
-            const fechaLegible = data.fecha?.toDate() 
-                ? data.fecha.toDate().toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) 
-                : "Procesando...";
-
-            const mov = { 
-                id: doc.id, 
-                ...data, 
-                fecha: fechaLegible 
-            };
-            
-            if (data.tipoModulo === 'yape') {
-                appData.yape.history.push(mov);
-                appData.yape.total += (data.op === 'in' ? data.monto : -data.monto);
-            } else {
-                appData.efectivo.history.push(mov);
-                appData.efectivo.total += (data.op === 'in' ? data.monto : -data.monto);
-            }
-        });
-
-        // Detectar en qué pestaña estamos para actualizar la vista sin cerrar sesión
+        
+        const data = snapshot.val();
+        if (data) {
+            // Procesar datos y calcular totales
+            Object.values(data).forEach(mov => {
+                if (mov.tipoModulo === 'yape') {
+                    appData.yape.history.unshift(mov); // Lo más nuevo arriba
+                    appData.yape.total += (mov.op === 'in' ? mov.monto : -mov.monto);
+                } else {
+                    appData.efectivo.history.unshift(mov);
+                    appData.efectivo.total += (mov.op === 'in' ? mov.monto : -mov.monto);
+                }
+            });
+        }
+        
         const btnActivo = document.querySelector('.nav-btn.active');
         const moduloActual = btnActivo ? btnActivo.id.replace('btn-', '') : 'resumen';
         showModule(moduloActual);
@@ -56,7 +40,7 @@ function login() {
     if (u === AUTH.user && p === AUTH.pass) {
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('main-dashboard').classList.remove('hidden');
-        conectarNube(); // Activa la escucha de la base de datos
+        conectarNube();
     } else {
         document.getElementById('error-msg').innerText = "Usuario o contraseña incorrectos";
     }
@@ -72,22 +56,20 @@ async function registrar(tipo) {
     if (!monto || !desc) return alert("Por favor, completa todos los campos");
 
     try {
-        // Guardar directamente en Firestore
-        await window.fb.addDoc(window.fb.collection(window.db, "movimientos"), {
+        const dbRef = window.fb.ref(window.db, 'movimientos');
+        await window.fb.push(dbRef, {
             desc: desc,
             monto: monto,
             op: op,
             tipoModulo: tipo,
-            fecha: window.fb.serverTimestamp() // Fecha oficial del servidor de Google
+            fecha: new Date().toLocaleString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
         });
         
-        // Limpiar campos tras éxito
         montoInput.value = "";
         descInput.value = "";
-        alert("✅ Registro guardado en la nube");
+        alert("✅ Guardado en la nube");
     } catch (e) {
-        console.error("Error:", e);
-        alert("❌ Error al guardar. Revisa tu conexión.");
+        alert("❌ Error al guardar");
     }
 }
 
@@ -105,7 +87,7 @@ function showModule(type) {
         content.innerHTML = `
             <h1>Resumen General (Nube)</h1>
             <div class="balance-card">
-                <p style="color: var(--text-muted)">Balance Total en la Nube</p>
+                <p style="color: var(--text-muted)">Balance Total</p>
                 <div class="amount-big">S/ ${total.toFixed(2)}</div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -118,7 +100,7 @@ function showModule(type) {
                     <h3>S/ ${appData.efectivo.total.toFixed(2)}</h3>
                 </div>
             </div>
-            <div class="chart-container" style="margin-top: 20px; background: var(--bg-card); padding: 20px; border-radius: 16px;">
+            <div class="chart-container" style="margin-top:20px; background:var(--bg-card); padding:20px; border-radius:16px;">
                 <canvas id="balanceChart"></canvas>
             </div>
         `;
@@ -126,19 +108,17 @@ function showModule(type) {
     } else {
         const data = appData[type];
         const color = type === 'yape' ? 'var(--yape)' : 'var(--cash)';
-        
         content.innerHTML = `
             <h1>Gestión: ${type.toUpperCase()}</h1>
             <div class="balance-card" style="border-top: 5px solid ${color}">
-                <p>Saldo en Tiempo Real</p>
+                <p>Saldo Actual</p>
                 <div class="amount-big" style="color: ${color}">S/ ${data.total.toFixed(2)}</div>
             </div>
-
             <div class="balance-card">
-                <h3><i class="fas fa-plus-circle"></i> Nueva Operación</h3>
+                <h3>Nueva Operación</h3>
                 <div class="form-group">
                     <input type="number" id="val-monto" placeholder="Monto S/">
-                    <input type="text" id="val-desc" placeholder="¿En qué se gastó o entró?">
+                    <input type="text" id="val-desc" placeholder="Concepto">
                     <select id="val-tipo">
                         <option value="in">Entrada (+)</option>
                         <option value="out">Salida (-)</option>
@@ -146,24 +126,19 @@ function showModule(type) {
                     <button class="btn-save" onclick="registrar('${type}')">Guardar</button>
                 </div>
             </div>
-
             <div class="balance-card">
-                <h3><i class="fas fa-history"></i> Historial de la Nube</h3>
-                <div id="historial-lista">
-                    ${data.history.length === 0 ? '<p>No hay movimientos aún.</p>' : renderHistorial(data.history)}
-                </div>
+                <h3>Historial</h3>
+                <div id="historial-lista">${renderHistorial(data.history)}</div>
             </div>
         `;
     }
 }
 
 function renderHistorial(lista) {
-    return lista.map((h) => `
+    if (lista.length === 0) return '<p>Sin movimientos</p>';
+    return lista.map(h => `
         <div class="history-item">
-            <div>
-                <strong>${h.desc}</strong><br>
-                <small style="color: var(--text-muted)">${h.fecha}</small>
-            </div>
+            <div><strong>${h.desc}</strong><br><small style="color:var(--text-muted)">${h.fecha}</small></div>
             <span class="${h.op === 'in' ? 'type-in' : 'type-out'}">
                 ${h.op === 'in' ? '+' : '-'} S/ ${h.monto.toFixed(2)}
             </span>
@@ -174,8 +149,7 @@ function renderHistorial(lista) {
 function initChart() {
     const canvas = document.getElementById('balanceChart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    new Chart(ctx, {
+    new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: ['Yape', 'Efectivo'],
@@ -185,10 +159,6 @@ function initChart() {
                 borderWidth: 0
             }]
         },
-        options: { 
-            plugins: { 
-                legend: { labels: { color: '#e0e4e0' }, position: 'bottom' } 
-            } 
-        }
+        options: { plugins: { legend: { labels: { color: '#e0e4e0' }, position: 'bottom' } } }
     });
 }

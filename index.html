@@ -48,18 +48,17 @@
             </button>
         </aside>
 
-        <section class="content-area" id="content-module">
-        </section>
+        <section class="content-area" id="content-module"></section>
     </main>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+      import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-      // Tus credenciales reales de Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyDerdEF4B6kWQImgjSdL1SeDUtQ1u5ZIUA",
         authDomain: "sistema-marilu-pro.firebaseapp.com",
+        databaseURL: "https://sistema-marilu-pro-default-rtdb.firebaseio.com",
         projectId: "sistema-marilu-pro",
         storageBucket: "sistema-marilu-pro.firebasestorage.app",
         messagingSenderId: "422557057418",
@@ -67,15 +66,14 @@
         measurementId: "G-X5VD5HQD6S"
       };
 
-      // Inicializar Firebase
       const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
+      const db = getDatabase(app);
 
-      // Exportamos 'db' y las funciones para que script.js las pueda usar
+      // Exportar para script.js
       window.db = db;
-      window.fb = { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp };
+      window.fb = { ref, push, onValue };
       
-      console.log("✅ Conectado a la nube de Google");
+      console.log("✅ Conectado a Realtime Database");
     </script>
 
     <script src="script.js"></script>
